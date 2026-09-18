@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Báo Cáo Định Kỳ</title>
+<link rel="icon" type="image/png" href="hcc.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--ink:#1b2430;--muted:#5b6675;--line:#dde3ea;--paper:#fff;--bg:#eef1f5;--accent:#1f5f5b;--accent-soft:#e6f0ef;--warn:#a4560a;--warn-bg:#fdf0e3;--bad:#a12f2f;--bad-bg:#fbeaea}
+*{box-sizing:border-box}body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+.header-bar{background:linear-gradient(135deg,#e8f4f8 0%,#d0eaf2 40%,#b8e0ec 100%);border-bottom:1px solid #a8d4e0;padding:18px 24px;display:flex;align-items:center;gap:18px}
+.header-bar img{width:72px;height:72px;object-fit:contain}
+.header-text h1{margin:0 0 2px;font-size:18px;color:#0d3d4d;font-weight:700}
+.header-text .sub{margin:0;font-size:13.5px;color:#1a5a6e;font-weight:600}
+.header-text .title{margin:6px 0 0;font-size:15px;color:#0d3d4d;font-weight:600}
+main{max-width:1400px;margin:18px auto 48px;padding:0 16px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}.panel h2{margin:0 0 12px;font-size:14px}
+.drop{border:1.5px dashed #b7c2cf;border-radius:10px;padding:26px 14px;text-align:center;color:var(--muted);cursor:pointer}.drop.drag{border-color:var(--accent);background:var(--accent-soft)}
+input[type=file]{display:none}
+table.filelist,table.preview{width:100%;border-collapse:collapse;font-size:12.2px}
+table.filelist th,table.filelist td,table.preview th,table.preview td{border:1px solid var(--line);padding:5px 7px;vertical-align:top}
+table.filelist{margin-top:12px}table.filelist th{background:#f6f8fa}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.tag.A{background:#e5edfb;color:#274a8f}.tag.B{background:var(--accent-soft);color:var(--accent)}.tag.C{background:#f3e8f9;color:#6a3a8f}.tag.unknown{background:var(--bad-bg);color:var(--bad)}
+.rm{border:none;background:none;color:var(--bad);cursor:pointer;text-decoration:underline;font-size:12px}
+.row-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+button.primary{background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer}button.primary:disabled{background:#b9c3c1;cursor:not-allowed}
+button.secondary{background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:8px;cursor:pointer}
+.note{font-size:12.2px;color:var(--muted);margin-top:10px}
+.warn-box,.bad-box{border-radius:8px;padding:10px 12px;font-size:12.4px;margin-top:10px}
+.warn-box{background:var(--warn-bg);color:var(--warn);border:1px solid #f0d5b4}.bad-box{background:var(--bad-bg);color:var(--bad);border:1px solid #f0c6c6}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:10px}
+.stat{background:#f6f8fa;border:1px solid var(--line);border-radius:8px;padding:10px}.stat .n{font-size:18px;font-weight:700}.stat .l{font-size:11.5px;color:var(--muted)}
+footer{text-align:center;color:#8b95a1;font-size:11.5px;padding:14px 0 36px}
+.report-type{display:flex;gap:28px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.report-type label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:12px;width:96vw;max-width:1400px;height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
+.modal-header{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.modal-header h3{margin:0;font-size:16px}
+.modal-close{border:none;background:none;font-size:22px;cursor:pointer;color:#666;line-height:1}
+.modal-body{overflow:auto;padding:0;flex:1;margin:0}
+.modal-body table{width:100%;border-collapse:collapse;font-size:11.5px;margin:0}
+.modal-body thead th{background:#ffe566;position:sticky;top:0;z-index:2;white-space:nowrap;padding:6px 7px;border:1px solid var(--line)}
+.modal-body thead tr.sub th{top:28px;background:#fff3b0}
+.modal-body td{padding:5px 7px;border:1px solid var(--line);vertical-align:top}
+.modal-body td.num{text-align:right;font-variant-numeric:tabular-nums}
+.modal-body tr.total td{background:#eef3f0;font-weight:700}
+</style>
+</head>
+<body>
+<div class="header-bar">
+  <img src="hcc.png" alt="Logo" onerror="this.style.display='none'">
+  <div class="header-text">
+    <h1>Trung tâm Quản trị Hệ thống &amp; Phát triển Ứng dụng</h1>
+    <p class="sub">Phòng Quản trị &amp; Phát triển Nền tảng số</p>
+    <p class="title">Tổng hợp kết quả giải quyết TTHC định kỳ</p>
+  </div>
+</div>
+<main>
+  <div class="panel">
+    <h2>1. Tải file lên</h2>
+    <div class="drop" id="drop">Kéo–thả <strong>.xlsx / .xls</strong> vào đây, hoặc <strong>bấm để chọn</strong></div>
+    <input type="file" id="fileInput" multiple accept=".xlsx,.xls">
+    <table class="filelist" id="fileTable" style="display:none">
+      <thead><tr><th>#</th><th>Tên file</th><th>Mẫu</th><th>Đơn vị có số</th><th>Sheet</th><th></th></tr></thead>
+      <tbody id="fileTableBody"></tbody>
+    </table>
+    <div id="fileWarnings"></div>
+    <div class="row-actions">
+      <button class="primary" id="mergeBtn" disabled>Tổng hợp (cộng theo đơn vị)</button>
+      <button class="secondary" id="clearBtn" disabled>Xoá tất cả</button>
+    </div>
+  </div>
+
+  <div class="panel" id="reportTypePanel" style="display:none">
+    <h2>Chọn loại báo cáo</h2>
+    <div class="report-type">
+      <label><input type="radio" name="reportType" value="ky" checked> Theo kỳ (đầy đủ)</label>
+      <label><input type="radio" name="reportType" value="tuan"> Theo Tuần (đầy đủ theo mẫu tuần)</label>
+    </div>
+  </div>
+
+  <div class="panel" id="resultPanel" style="display:none">
+    <h2>2. Kết quả final</h2>
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="row-actions">
+      <button class="primary" id="downloadXlsxBtn">Tải Excel (.xlsx)</button>
+      <button class="secondary" id="previewBtn">Xem trước</button>
+    </div>
+    <div class="note" id="colNote"></div>
+  </div>
+</main>
+<div class="modal-overlay" id="previewModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Xem trước bảng tổng hợp</h3>
+      <button class="modal-close" id="closeModal">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+<footer>QT&PTNTS</footer>
+<script>
+const CANON = [
+  {key:'stt', top:'STT', sub:''},
+  {key:'unit', top:'Đơn vị giải quyết TTHC', sub:''},
+  {key:'recv_total', top:'Số hồ sơ tiếp nhận', sub:'Tổng số'},
+  {key:'recv_direct', top:'Số hồ sơ tiếp nhận', sub:'Tiếp nhận trực tiếp'},
+  {key:'recv_online_full', top:'Số hồ sơ tiếp nhận', sub:'Tiếp nhận trực tuyến toàn trình'},
+  {key:'recv_online_partial', top:'Số hồ sơ tiếp nhận', sub:'Tiếp nhận trực tuyến một phần'},
+  {key:'recv_online_other', top:'Số hồ sơ tiếp nhận', sub:'Tiếp nhận trực tuyến hình thức khác'},
+  {key:'recv_non_local', top:'Số hồ sơ tiếp nhận', sub:'Tiếp nhận phi địa giới'},
+  {key:'recv_carry', top:'Số hồ sơ tiếp nhận', sub:'Kỳ trước chuyển qua'},
+  {key:'recv_postal', top:'Số hồ sơ tiếp nhận', sub:'Bưu chính / BCCI'},
+  {key:'res_total', top:'Số hồ sơ đã giải quyết', sub:'Tổng số'},
+  {key:'res_ontime', top:'Số hồ sơ đã giải quyết', sub:'Đúng và trước hạn'},
+  {key:'res_late_sorry', top:'Số hồ sơ đã giải quyết', sub:'Quá hạn (đã có thư xin lỗi)'},
+  {key:'res_late_no_sorry', top:'Số hồ sơ đã giải quyết', sub:'Quá hạn (chưa có thư xin lỗi)'},
+  {key:'res_late', top:'Số hồ sơ đã giải quyết', sub:'Quá hạn (gộp)'},
+  {key:'proc_total', top:'Số hồ sơ đang giải quyết', sub:'Tổng số'},
+  {key:'proc_ontime', top:'Số hồ sơ đang giải quyết', sub:'Chưa đến hạn'},
+  {key:'proc_late_sorry', top:'Số hồ sơ đang giải quyết', sub:'Quá hạn (đã có thư xin lỗi)'},
+  {key:'proc_late_no_sorry', top:'Số hồ sơ đang giải quyết', sub:'Quá hạn (chưa có thư xin lỗi)'},
+  {key:'proc_late', top:'Số hồ sơ đang giải quyết', sub:'Quá hạn (gộp)'},
+  {key:'pay_total', top:'Thanh toán hồ sơ', sub:'Tổng số'},
+  {key:'pay_online', top:'Thanh toán hồ sơ', sub:'Trực tuyến'},
+  {key:'pay_direct', top:'Thanh toán hồ sơ', sub:'Trực tiếp'},
+  {key:'stopped', top:'Hồ sơ dừng xử lý', sub:''},
+  {key:'pending_ontime', top:'Hồ sơ TT chờ tiếp nhận', sub:'Đúng hạn'},
+  {key:'pending_late', top:'Hồ sơ TT chờ tiếp nhận', sub:'Quá hạn'},
+  {key:'pending_receive', top:'Hồ sơ TT chờ tiếp nhận', sub:'Tổng (nếu không tách)'},
+  {key:'rejected', top:'Hồ sơ không được tiếp nhận', sub:''},
+  {key:'mismatch_digital', top:'HS kết thúc nhưng KQ điện tử ≠ giấy', sub:''},
+  {key:'receipt_money', top:'HS thu tiền có xuất biên lai', sub:''},
+  {key:'dn_verified_rate', top:'Tỷ lệ DN xác thực QLVBDN', sub:''},
+  {key:'withdrawn', top:'Hồ sơ rút', sub:''},
+  {key:'sources', top:'Nguồn file', sub:''}
+];
+
+const CANON_TUAN = [
+  {key:'stt', top:'STT', sub:''},
+  {key:'unit', top:'Đơn vị', sub:''},
+  {key:'recv_total', top:'Số lượng hồ sơ tiếp nhận', sub:'Tổng số'},
+  {key:'recv_online_full', top:'Số lượng hồ sơ tiếp nhận', sub:'Trực tuyến toàn trình'},
+  {key:'recv_online_partial', top:'Số lượng hồ sơ tiếp nhận', sub:'Trực tuyến một phần'},
+  {key:'recv_postal', top:'Số lượng hồ sơ tiếp nhận', sub:'Qua dịch vụ bưu chính'},
+  {key:'recv_direct', top:'Số lượng hồ sơ tiếp nhận', sub:'Trực tiếp'},
+  {key:'recv_carry', top:'Số lượng hồ sơ tiếp nhận', sub:'Từ kỳ trước'},
+  {key:'res_total', top:'Số lượng hồ sơ đã giải quyết', sub:'Tổng số'},
+  {key:'res_before', top:'Số lượng hồ sơ đã giải quyết', sub:'Trước hạn'},
+  {key:'res_ontime', top:'Số lượng hồ sơ đã giải quyết', sub:'Đúng hạn'},
+  {key:'res_late', top:'Số lượng hồ sơ đã giải quyết', sub:'Quá hạn'},
+  {key:'proc_total', top:'Số lượng hồ sơ đang giải quyết', sub:'Tổng số'},
+  {key:'proc_ontime', top:'Số lượng hồ sơ đang giải quyết', sub:'Trong hạn'},
+  {key:'proc_late', top:'Số lượng hồ sơ đang giải quyết', sub:'Quá hạn'},
+  {key:'sources', top:'Nguồn file', sub:''}
+];
+
+const NUM_KEYS = CANON.map(c => c.key).filter(k => !['stt','unit','sources'].includes(k));
+if (!NUM_KEYS.includes('res_before')) NUM_KEYS.push('res_before');
+let uploadedFiles = [], finalRows = [];
+
+function norm(s){ return (s == null || s === undefined) ? '' : String(s).trim(); }
+function normLower(s){ return norm(s).toLowerCase(); }
+function escapeHtml(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(n){ if(n === null || n === undefined || isNaN(n)) return ''; return Number(n).toLocaleString('vi-VN'); }
+function toNum(v){
+  if(v === null || v === undefined || v === '') return null;
+  if(typeof v === 'number' && !isNaN(v)) return v;
+  let s = String(v).trim();
+  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g,'').replace(',','.');
+  else s = s.replace(/\s/g,'').replace(/,/g,'.');
+  const n = parseFloat(s); return isNaN(n) ? null : n;
+}
+function isDataStt(v){ return /^\d+(\.\d+)*$/.test(norm(v)); }
+function normalizeUnitName(name){ return norm(name).replace(/^[-–—\s]+/g,'').replace(/\s+/g,' ').trim(); }
+function removeDiacritics(str){
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'d');
+}
+
+function unitKey(name){
+  let s = normalizeUnitName(name).toLowerCase();
+  s = removeDiacritics(s);
+  s = s
+    .replace(/ubnd\s*/g, '')
+    .replace(/uy\s*ban\s*nhan\s*dan\s*/g, '')
+    .replace(/,?\s*thanh\s*pho\s*ha\s*noi/g, '')
+    .replace(/,?\s*tp\.?\s*ha\s*noi/g, '')
+    .replace(/,?\s*ha\s*noi/g, '')
+    .replace(/\s*-\s*tp\.?\s*ha\s*noi/g, '')
+    .replace(/\s*-\s*thanh\s*pho\s*ha\s*noi/g, '');
+  s = s
+    .replace(/ban\s*qlckcnc\s*-?\s*kcn/g, 'ban quan ly khu cnc va khu cn')
+    .replace(/bql\s*khu\s*cnc\s*va\s*khu\s*cn/g, 'ban quan ly khu cnc va khu cn')
+    .replace(/ban\s*quan\s*ly\s*cac\s*khu\s*cong\s*nghe\s*cao\s*va\s*khu\s*cong\s*nghiep/g, 'ban quan ly khu cnc va khu cn')
+    .replace(/ban\s*quan\s*ly\s*khu\s*kinh\s*te\s*va\s*khu\s*cong\s*nghiep/g, 'ban quan ly khu cnc va khu cn');
+  s = s.replace(/chi\s*nhanh\s*so\s*(\d+).*/g, 'chi nhanh so $1');
+  s = s
+    .replace(/trung\s*tam\s*hcc\b/g, 'trung tam phuc vu hanh chinh cong')
+    .replace(/trung\s*tam\s*phuc\s*vu\s*hanh\s*chinh\s*cong/g, 'trung tam phuc vu hanh chinh cong');
+  s = s
+    .replace(/so\s*van\s*hoa\s*,?\s*the\s*thao\s*va\s*du\s*lich/g, 'so van hoa the thao va du lich')
+    .replace(/so\s*van\s*hoa\s*va\s*the\s*thao/g, 'so van hoa the thao va du lich')
+    .replace(/so\s*du\s*lich/g, 'so van hoa the thao va du lich')
+    .replace(/so\s*noi\s*vu/g, 'so noi vu')
+    .replace(/so\s*tai\s*chinh/g, 'so tai chinh')
+    .replace(/so\s*y\s*te/g, 'so y te')
+    .replace(/so\s*xay\s*dung/g, 'so xay dung')
+    .replace(/so\s*tu\s*phap/g, 'so tu phap')
+    .replace(/so\s*nong\s*nghiep\s*va\s*moi\s*truong/g, 'so nong nghiep va moi truong')
+    .replace(/so\s*quy\s*hoach\s*-?\s*kien\s*truc/g, 'so quy hoach kien truc')
+    .replace(/so\s*cong\s*thuong/g, 'so cong thuong')
+    .replace(/so\s*giao\s*duc\s*va\s*dao\s*tao/g, 'so giao duc va dao tao')
+    .replace(/so\s*dan\s*toc\s*va\s*ton\s*giao/g, 'so dan toc va ton giao')
+    .replace(/so\s*ngoai\s*vu/g, 'so ngoai vu');
+  s = s
+    .replace(/van\s*phong\s*ubnd\s*thanh\s*pho/g, 'van phong ubnd thanh pho')
+    .replace(/van\s*phong\s*ubnd\s*tp\.?/g, 'van phong ubnd thanh pho');
+  s = s
+    .replace(/\bphuong\b/g, 'phuong')
+    .replace(/\bxa\b/g, 'xa')
+    .replace(/\bquan\b/g, 'quan')
+    .replace(/\bhuyen\b/g, 'huyen');
+  if (/\bphuong\b/.test(s) || /\bxa\b/.test(s)) {
+    s = 'ubnd ' + s.replace(/^ubnd\s*/, '');
+  }
+  s = s.replace(/[.,;:()–—\-]/g, ' ').replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+function rowHasNum(r){ return NUM_KEYS.some(k => typeof r[k] === 'number'); }
+function scoreSheet(aoa){
+  const head = aoa.slice(0,12).map(r => (r||[]).map(c => normLower(c)).join(' ')).join(' | ');
+  let s = 0;
+  if(head.includes('stt')) s += 5;
+  if(head.includes('đơn vị') || head.includes('don vi')) s += 4;
+  if(head.includes('tiếp nhận') || head.includes('tiep nhan')) s += 3;
+  if(head.includes('giải quyết') || head.includes('giai quyet')) s += 3;
+  if(head.includes('tthc')) s += 2;
+  return s;
+}
+function pickBestSheet(wb){
+  let best = null, bestScore = -1, bestName = '';
+  wb.SheetNames.forEach(name => {
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, defval:null, raw:true});
+    const sc = scoreSheet(aoa);
+    if(sc > bestScore){ bestScore = sc; best = aoa; bestName = name; }
+  });
+  return {aoa: best || [], sheetName: bestName, score: bestScore};
+}
+function findHeaderStart(aoa){
+  for(let i = 0; i < Math.min(aoa.length, 40); i++){
+    const row = aoa[i] || [];
+    for(let c = 0; c < Math.min(row.length, 5); c++) if(normLower(row[c]) === 'stt') return i;
+  }
+  return -1;
+}
+function isTongHopTheoDonVi(aoa){
+  const t = aoa.slice(0,12).map(r => (r||[]).map(c => normLower(c)).join(' ')).join(' | ');
+  return t.includes('tổng hợp kết quả giải quyết tthc theo đơn vị')
+    || t.includes('tong hop ket qua giai quyet tthc theo don vi')
+    || (t.includes('tổng hợp kết quả giải quyết tthc') && t.includes('theo đơn vị'));
+}
+function detectFamily(aoa){
+  const t = aoa.slice(0,12).map(r => (r||[]).map(c => normLower(c)).join(' ')).join('\n');
+  if(isTongHopTheoDonVi(aoa)) return {code:'A', label:'Tổng hợp theo đơn vị'};
+  if(t.includes('07a/btp')) return {code:'C', label:'Biểu 07a/BTP'};
+  if(t.includes('ii.06a') || t.includes('vpcp') || t.includes('tình hình, kết quả giải quyết thủ tục')) return {code:'B', label:'Biểu II.06a/VPCP'};
+  return {code:'unknown', label:'Cấu trúc chung'};
+}
+function parseTongHopTheoDonVi(name, aoa, sheetName){
+  const headerStart = findHeaderStart(aoa);
+  if(headerStart < 0) return {name, sheetName, family:{code:'A',label:'Tổng hợp theo đơn vị'}, rows:[], error:'Không thấy STT'};
+  const headText = aoa.slice(0,8).map(x => (x||[]).join(' ')).join(' ').toLowerCase();
+  const hasStoppedCol = headText.includes('dừng xử lý') || headText.includes('dung xu ly');
+  const rows = [];
+  for(let r = headerStart + 1; r < aoa.length; r++){
+    const row = aoa[r] || [];
+    const sttRaw = norm(row[0]);
+    const unitRaw = norm(row[1]);
+    if(!unitRaw) continue;
+    if(normLower(unitRaw) === 'đơn vị giải quyết tthc') continue;
+    if(/tổng cộng|tong cong/i.test(sttRaw) || /tổng cộng|tong cong/i.test(unitRaw)) continue;
+    if(normLower(unitRaw).includes('trong đó')) continue;
+
+    const v = {
+      recv_total: toNum(row[2]),
+      recv_carry: null,
+      recv_direct: toNum(row[3]),
+      recv_online_full: toNum(row[4]),
+      recv_postal: toNum(row[5]),
+      recv_online_partial: null,
+      recv_online_other: null,
+      recv_non_local: null,
+      res_total: toNum(row[6]),
+      res_before: toNum(row[7]),
+      res_ontime: null,
+      res_late: toNum(row[8]),
+      res_late_sorry: null,
+      res_late_no_sorry: null,
+      proc_total: toNum(row[9]),
+      proc_ontime: toNum(row[10]),
+      proc_late: toNum(row[11]),
+      proc_late_sorry: null,
+      proc_late_no_sorry: null
+    };
+    if(hasStoppedCol){
+      v.stopped = toNum(row[12]);
+      v.withdrawn = toNum(row[13]);
+      v.pending_receive = toNum(row[14]);
+      v.rejected = toNum(row[15]);
+    } else {
+      v.stopped = null;
+      v.withdrawn = null;
+      v.pending_receive = null;
+      v.rejected = null;
+    }
+    v.pay_total = null; v.pay_online = null; v.pay_direct = null;
+    v.pending_ontime = null; v.pending_late = null;
+    v.mismatch_digital = null; v.receipt_money = null; v.dn_verified_rate = null;
+    rows.push({stt: sttRaw, unit: normalizeUnitName(unitRaw), ...v, _src: name});
+  }
+  return {name, sheetName, family:{code:'A',label:'Tổng hợp theo đơn vị'}, rows, error:null};
+}
+function forwardFill(row, width){
+  const out = new Array(width).fill(''); let last = '';
+  for(let c = 0; c < width; c++){ const v = norm(row[c]); if(v){ last = v; out[c] = v; } else out[c] = last; }
+  return out;
+}
+function isFormulaHeaderRow(row){ let h = 0; (row||[]).forEach(c => { if(/^\(\d+\)$/.test(norm(c))) h++; }); return h >= 3; }
+function buildLabels(aoa, headerStart){
+  const width = Math.max(3, ...aoa.slice(headerStart, headerStart+8).map(r => (r||[]).length));
+  const headerRows = []; let dataStart = headerStart + 1;
+  for(let i = headerStart; i < Math.min(headerStart+8, aoa.length); i++){
+    const row = aoa[i] || [];
+    if(isFormulaHeaderRow(row)){ dataStart = i+1; continue; }
+    if(i > headerStart && isDataStt(row[0])){ dataStart = i; break; }
+    headerRows.push(forwardFill(row, width)); dataStart = i+1;
+  }
+  const labels = [];
+  for(let c = 0; c < width; c++){
+    const parts = [];
+    headerRows.forEach(hr => { const x = norm(hr[c]); if(x && !parts.includes(x)) parts.push(x); });
+    labels.push(parts.join(' > '));
+  }
+  return {labels, dataStart};
+}
+function classify(label, colIndex){
+  const L = normLower(label);
+  if(colIndex === 0) return 'stt';
+  if(colIndex === 1 || L.includes('đơn vị') || L.includes('don vi')) return 'unit';
+  if(L.includes('không được tiếp nhận')) return 'rejected';
+  if(L.includes('chờ tiếp nhận') && L.includes('đúng')) return 'pending_ontime';
+  if(L.includes('chờ tiếp nhận') && L.includes('quá')) return 'pending_late';
+  if(L.includes('chờ tiếp nhận')) return 'pending_receive';
+  if(L.includes('dừng xử lý')) return 'stopped';
+  if(L.includes('rút') && !L.includes('trước')) return 'withdrawn';
+  if(L.includes('thanh toán')){
+    if(L.includes('tổng')) return 'pay_total';
+    if(L.includes('trực tuyến')) return 'pay_online';
+    if(L.includes('trực tiếp')) return 'pay_direct';
+  }
+  if(L.includes('phi địa giới')) return 'recv_non_local';
+  if(L.includes('hình thức khác')) return 'recv_online_other';
+  if(L.includes('thư xin lỗi') && L.includes('đã') && (L.includes('đã giải quyết') || L.includes('quá hạn'))) return 'res_late_sorry';
+  if(L.includes('thư xin lỗi') && L.includes('chưa')) return 'res_late_no_sorry';
+  let section = null;
+  if(L.includes('đã giải quyết') || L.includes('da giai quyet')) section = 'res';
+  else if(L.includes('đang giải quyết') || L.includes('dang giai quyet')) section = 'proc';
+  else if(L.includes('tiếp nhận') || L.includes('tiep nhan') || L.includes('nhận giải quyết')) section = 'recv';
+  if(section === 'recv'){
+    if(L.includes('tổng số') || L.includes('tong so')) return 'recv_total';
+    if(L.includes('kỳ trước') || L.includes('chuyển qua')) return 'recv_carry';
+    if(L.includes('toàn trình')) return 'recv_online_full';
+    if(L.includes('một phần')) return 'recv_online_partial';
+    if(L.includes('bưu chính') || L.includes('bcci')) return 'recv_postal';
+    if(L.includes('trực tuyến')) return 'recv_online_full';
+    if(L.includes('trực tiếp')) return 'recv_direct';
+    return null;
+  }
+  if(section === 'res'){
+    if(L.includes('tổng số') || L.includes('tong so')) return 'res_total';
+    if(L.includes('quá hạn') || L.includes('qua han')) return 'res_late';
+    if((L.includes('đúng') || L.includes('dung')) && (L.includes('trước') || L.includes('truoc'))) return 'res_before';
+    if(L.includes('trước hạn') || L.includes('truoc han')) return 'res_before';
+    if(L.includes('đúng hạn') || L.includes('dung han') || L.includes('đúng') || L.includes('dung')) return 'res_ontime';
+    return null;
+  }
+  if(section === 'proc'){
+    if(L.includes('tổng số') || L.includes('tong so')) return 'proc_total';
+    if(L.includes('quá hạn') || L.includes('qua han')) return 'proc_late';
+    if(L.includes('trong hạn') || L.includes('chưa đến hạn') || L.includes('chua den han')) return 'proc_ontime';
+    return null;
+  }
+  return null;
+}
+function parseGeneric(name, aoa, sheetName){
+  const family = detectFamily(aoa);
+  const headerStart = findHeaderStart(aoa);
+  if(headerStart < 0) return {name, sheetName, family, rows:[], error:'Không thấy STT'};
+  const {labels, dataStart} = buildLabels(aoa, headerStart);
+  const fieldToCol = {};
+  labels.forEach((lab, idx) => { const f = classify(lab, idx); if(f && fieldToCol[f] === undefined) fieldToCol[f] = idx; });
+  if(fieldToCol.unit === undefined) fieldToCol.unit = 1;
+  const rows = [];
+  for(let r = dataStart; r < aoa.length; r++){
+    const row = aoa[r] || [];
+    if(!row.length || row.every(c => norm(c) === '')) continue;
+    const sttRaw = norm(row[0]);
+    const unitRaw = norm(row[fieldToCol.unit] ?? row[1]);
+    if(/tổng cộng|tong cong/i.test(sttRaw) || /tổng cộng|tong cong/i.test(unitRaw)) continue;
+    if(!unitRaw) continue;
+    const vals = {};
+    NUM_KEYS.forEach(f => { const idx = fieldToCol[f]; vals[f] = (idx !== undefined) ? toNum(row[idx]) : null; });
+    if(!isDataStt(sttRaw) && !NUM_KEYS.some(k => typeof vals[k] === 'number')) continue;
+    rows.push({stt: sttRaw, unit: normalizeUnitName(unitRaw), ...vals, _src: name});
+  }
+  return {name, sheetName, family, rows, error: null};
+}
+function parseFile(name, aoa, sheetName){
+  if(isTongHopTheoDonVi(aoa)) return parseTongHopTheoDonVi(name, aoa, sheetName);
+  return parseGeneric(name, aoa, sheetName);
+}
+
+function aggregateByUnit(allRows){
+  const map = new Map();
+  allRows.forEach(r => {
+    const key = unitKey(r.unit);
+    if(!key) return;
+    const lower = key.toLowerCase();
+    if(lower.includes('cap xa') || lower.includes('account khong dung')) return;
+    if(!rowHasNum(r)) return;
+    if(!map.has(key)){
+      const base = {stt: r.stt, unit: r.unit, sources: new Set([r._src])};
+      NUM_KEYS.forEach(k => base[k] = (typeof r[k] === 'number' ? r[k] : 0));
+      map.set(key, base);
+    } else {
+      const cur = map.get(key);
+      NUM_KEYS.forEach(k => { if(typeof r[k] === 'number') cur[k] = (cur[k] || 0) + r[k]; });
+      cur.sources.add(r._src);
+      if((r.unit || '').length > (cur.unit || '').length) cur.unit = r.unit;
+    }
+  });
+  const arr = [...map.values()].map(x => ({...x, sources: [...x.sources].join('; ')}));
+  arr.sort((a, b) => a.unit.localeCompare(b.unit, 'vi'));
+  arr.forEach((r, i) => r.stt = String(i + 1));
+  return arr;
+}
+
+function getCurrentCanon(){
+  const type = document.querySelector('input[name="reportType"]:checked')?.value || 'ky';
+  return type === 'tuan' ? CANON_TUAN : CANON;
+}
+
+const drop = document.getElementById('drop'), fileInput = document.getElementById('fileInput');
+const fileTable = document.getElementById('fileTable'), fileTableBody = document.getElementById('fileTableBody');
+const fileWarnings = document.getElementById('fileWarnings'), mergeBtn = document.getElementById('mergeBtn');
+const clearBtn = document.getElementById('clearBtn'), resultPanel = document.getElementById('resultPanel');
+const reportTypePanel = document.getElementById('reportTypePanel');
+
+drop.onclick = () => fileInput.click();
+['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+fileInput.addEventListener('change', e => { handleFiles(e.target.files); fileInput.value = ''; });
+
+function handleFiles(list){
+  const files = [...list].filter(f => /\.(xlsx|xls)$/i.test(f.name));
+  if(!files.length) return;
+  let left = files.length;
+  files.forEach(f => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array', raw:true});
+        const picked = pickBestSheet(wb);
+        if(picked.score < 5) uploadedFiles.push({name:f.name, family:{code:'unknown',label:'Không chắc'}, rows:[], sheetName:picked.sheetName, error:'Không nhận ra bảng TTHC'});
+        else uploadedFiles.push(parseFile(f.name, picked.aoa, picked.sheetName));
+      } catch(err){ uploadedFiles.push({name:f.name, family:{code:'unknown',label:'Lỗi'}, rows:[], error:String(err.message||err)}); }
+      left--; if(left === 0) renderFileTable();
+    };
+    reader.readAsArrayBuffer(f);
+  });
+}
+function renderFileTable(){
+  fileTable.style.display = uploadedFiles.length ? 'table' : 'none';
+  fileTableBody.innerHTML = '';
+  const warns = [];
+  uploadedFiles.forEach((f, i) => {
+    const n = (f.rows || []).filter(rowHasNum).length;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td><td>${escapeHtml(f.name)}</td><td><span class="tag ${f.family?.code||'unknown'}">${escapeHtml(f.family?.label||'')}</span></td><td>${n}</td><td>${escapeHtml(f.sheetName||'')}</td><td><button class="rm" data-i="${i}">Xoá</button></td>`;
+    fileTableBody.appendChild(tr);
+    if(f.error) warns.push(`<div class="bad-box"><b>${escapeHtml(f.name)}:</b> ${escapeHtml(f.error)}</div>`);
+    else if(n === 0) warns.push(`<div class="warn-box"><b>${escapeHtml(f.name)}:</b> không đọc được dòng có số.</div>`);
+  });
+  fileWarnings.innerHTML = warns.join('');
+  fileTableBody.querySelectorAll('.rm').forEach(btn => btn.onclick = () => { uploadedFiles.splice(+btn.dataset.i, 1); renderFileTable(); });
+  mergeBtn.disabled = !uploadedFiles.length; clearBtn.disabled = !uploadedFiles.length;
+}
+clearBtn.onclick = () => {
+  uploadedFiles = []; finalRows = [];
+  renderFileTable();
+  resultPanel.style.display = 'none';
+  reportTypePanel.style.display = 'none';
+};
+mergeBtn.onclick = () => {
+  const all = []; uploadedFiles.forEach(f => (f.rows || []).forEach(r => all.push(r)));
+  finalRows = aggregateByUnit(all);
+  renderResult();
+};
+function sumKey(k){
+  return finalRows.reduce((a, r) => a + (typeof fieldVal(r, k) === 'number' ? fieldVal(r, k) : 0), 0);
+}
+function isKyReport(){
+  return (document.querySelector('input[name="reportType"]:checked')?.value || 'ky') !== 'tuan';
+}
+function fieldVal(r, key){
+  if(key === 'res_ontime' && isKyReport()){
+    const a = typeof r.res_ontime === 'number' ? r.res_ontime : 0;
+    const b = typeof r.res_before === 'number' ? r.res_before : 0;
+    const s = a + b;
+    return s ? s : null;
+  }
+  return r[key];
+}
+
+function buildTableHtml(){
+  const CANON_USE = getCurrentCanon();
+  let top = '<tr class="top">', sub = '<tr class="sub">', i = 0;
+  while(i < CANON_USE.length){
+    const t = CANON_USE[i].top; let span = 1;
+    while(i + span < CANON_USE.length && CANON_USE[i+span].top === t) span++;
+    if(span === 1 && !CANON_USE[i].sub) top += `<th rowspan="2">${escapeHtml(t)}</th>`;
+    else { top += `<th colspan="${span}">${escapeHtml(t)}</th>`; for(let k = 0; k < span; k++) sub += `<th>${escapeHtml(CANON_USE[i+k].sub||'')}</th>`; }
+    i += span;
+  }
+  top += '</tr>'; sub += '</tr>';
+  const body = finalRows.map(r => '<tr>' + CANON_USE.map(c => {
+    if(c.key === 'stt') return `<td>${escapeHtml(r.stt)}</td>`;
+    if(c.key === 'unit') return `<td>${escapeHtml(r.unit)}</td>`;
+    if(c.key === 'sources') return `<td style="font-size:11px;color:#667">${escapeHtml(r.sources||'')}</td>`;
+    const val = fieldVal(r, c.key);
+    return `<td class="num">${val ? fmt(val) : ''}</td>`;
+  }).join('') + '</tr>').join('');
+  const total = '<tr class="total">' + CANON_USE.map(c => {
+    if(c.key === 'stt') return '<td></td>';
+    if(c.key === 'unit') return '<td>TỔNG CỘNG</td>';
+    if(c.key === 'sources') return '<td></td>';
+    return `<td class="num">${fmt(sumKey(c.key))}</td>`;
+  }).join('') + '</tr>';
+  return `<table class="preview"><thead>${top}${sub}</thead><tbody>${body}${total}</tbody></table>`;
+}
+
+function renderResult(){
+  resultPanel.style.display = 'block';
+  reportTypePanel.style.display = 'block';
+
+  const isTuan = document.querySelector('input[name="reportType"]:checked')?.value === 'tuan';
+  const online = (sumKey('recv_online_full') || 0) + (sumKey('recv_online_partial') || 0);
+  const direct = sumKey('recv_direct') || 0;
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat"><div class="n">${uploadedFiles.length}</div><div class="l">File nguồn</div></div>
+    <div class="stat"><div class="n">${finalRows.length}</div><div class="l">Đơn vị đã gộp</div></div>
+    <div class="stat"><div class="n">${fmt(sumKey('recv_total'))}</div><div class="l">Tiếp nhận</div></div>
+    <div class="stat">
+      <div class="n">${isTuan ? fmt(online) : fmt(sumKey('res_total'))}</div>
+      <div class="l">${isTuan ? 'Trực tuyến' : 'Đã giải quyết'}</div>
+    </div>
+    <div class="stat">
+      <div class="n">${isTuan ? fmt(direct) : fmt(sumKey('proc_total'))}</div>
+      <div class="l">${isTuan ? 'Trực tiếp' : 'Đang giải quyết'}</div>
+    </div>`;
+
+  document.getElementById('colNote').textContent = 'Kiểm tra kỹ các thông tin trước khi Tải!';
+}
+
+function getTimestamp(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}`;
+}
+
+document.getElementById('downloadXlsxBtn').onclick = () => {
+  const CANON_USE = getCurrentCanon();
+  const h1 = CANON_USE.map(c => c.top), h2 = CANON_USE.map(c => c.sub);
+  const aoa = [h1, h2];
+  finalRows.forEach(r => aoa.push(CANON_USE.map(c => {
+    if(c.key === 'stt') return r.stt;
+    if(c.key === 'unit') return r.unit;
+    if(c.key === 'sources') return r.sources || '';
+    return fieldVal(r, c.key) ?? '';
+  })));
+  aoa.push(CANON_USE.map(c => {
+    if(c.key === 'stt') return '';
+    if(c.key === 'unit') return 'TỔNG CỘNG';
+    if(c.key === 'sources') return '';
+    return sumKey(c.key);
+  }));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const yellow = {fill:{fgColor:{rgb:"FFE566"}}, font:{bold:true}, alignment:{horizontal:"center",vertical:"center",wrapText:true}};
+  const yellowSub = {fill:{fgColor:{rgb:"FFF3B0"}}, font:{bold:true}, alignment:{horizontal:"center",vertical:"center",wrapText:true}};
+  for(let c = 0; c < CANON_USE.length; c++){
+    const a0 = XLSX.utils.encode_cell({r:0, c});
+    if(!ws[a0]) ws[a0] = {t:'s', v:h1[c]};
+    ws[a0].s = yellow;
+    const a1 = XLSX.utils.encode_cell({r:1, c});
+    if(!ws[a1]) ws[a1] = {t:'s', v:h2[c] || ''};
+    ws[a1].s = yellowSub;
+  }
+  ws['!cols'] = CANON_USE.map(c => {
+    if(c.key === 'unit') return {wch:42};
+    if(c.key === 'sources') return {wch:26};
+    if(c.key === 'stt') return {wch:6};
+    return {wch:13};
+  });
+  const merges = [];
+  let col = 0;
+  while(col < CANON_USE.length){
+    let span = 1;
+    while(col + span < CANON_USE.length && CANON_USE[col+span].top === CANON_USE[col].top) span++;
+    if(span === 1 && !CANON_USE[col].sub) merges.push({s:{r:0,c:col}, e:{r:1,c:col}});
+    else if(span > 1) merges.push({s:{r:0,c:col}, e:{r:0,c:col+span-1}});
+    col += span;
+  }
+  ws['!merges'] = merges;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Tong hop TTHC');
+  const typeLabel = (document.querySelector('input[name="reportType"]:checked')?.value === 'tuan') ? 'Tuan' : 'Ky';
+  XLSX.writeFile(wb, `Tong-hop-bao-cao-${typeLabel}-${getTimestamp()}.xlsx`);
+};
+
+document.getElementById('previewBtn').onclick = () => {
+  document.getElementById('modalBody').innerHTML = buildTableHtml();
+  document.getElementById('previewModal').classList.add('show');
+};
+document.getElementById('closeModal').onclick = () => {
+  document.getElementById('previewModal').classList.remove('show');
+};
+document.getElementById('previewModal').onclick = (e) => {
+  if(e.target.id === 'previewModal') document.getElementById('previewModal').classList.remove('show');
+};
+document.querySelectorAll('input[name="reportType"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    if (finalRows.length) renderResult();
+  });
+});
+</script>
+</body>
+</html>
